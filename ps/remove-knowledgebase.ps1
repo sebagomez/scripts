@@ -96,7 +96,7 @@ function Remove-IISApp(){
 		$script:sites += $webApp
 		foreach($wa in $webApps){
 			if ($wa.path -eq $webApp){
-				Invoke-Command-With-Permission -message "Do you want to remove the $($webApp) IIS app ($($model))?" -command "Remove-WebApplication -Site $($defaultWebSite) -Name $($wa.path.substring(1))"
+				Invoke-Command-With-Permission -message "Do you want to remove the $($webApp) IIS app ($($model))?" -command "Remove-WebApplication -Site '$($defaultWebSite)' -Name $($wa.path.substring(1))"
 				return
 			}
 		}
@@ -109,16 +109,15 @@ function Remove-Database(){
 			if ($dbName -and (-not ($script:dbs.contains($dbName)))) {
 				$script:dbs += $dbName
 				$sql = "drop database [$($dbName)]";
-				#sqlcmd -E -S $dbServer -Q $sql
 				$schemaText = ""
 				if ($schema){
 					$schemaText = " ($($schema))"
 				}
-				Invoke-Command-With-Permission -message "Do you want to remove the $($dbName) database$($schemaText) from $($dbServer) ($($model))?" -command "sqlcmd -E -S $($dbServer) -Q $($sql)"
+				Invoke-Command-With-Permission -message "Do you want to remove the $($dbName) database$($schemaText) from $($dbServer) ($($model))?" -command 'sqlcmd -E -S $($dbServer) -Q "$($sql)"'
 			}
 		}
 		else {
-			if (-not ($dbms.startswith("Android")) -and (-not ($dbms.startswith("SmartDevices"))) -and (-not ($dbms.startswith("Swift")))){
+			if (-not ($dbms.startswith("Android")) -and (-not ($dbms.startswith("SmartDevices"))) -and (-not ($dbms.startswith("Swift")))-and (-not ($dbms.startswith("Objective-C")))){
 				Write-Warning "I'm not able to remove $($dbms) databases. You'll have to remove it yourself"
 			}
 		}
@@ -137,8 +136,7 @@ function Remove-KnowledgeBase() {
 
 		if ($kbdb) {
 			$sql = "drop database [$($kbdb)]";
-			#sqlcmd -E -S $sqlInstance -Q $sql
-			Invoke-Command-With-Permission -message "Do you want to delete the KB database at $($kbdb) ($($sqlInstance))?" -command "sqlcmd -E -S $($sqlInstance) -Q $($sql)"
+			Invoke-Command-With-Permission -message "Do you want to delete the KB database at $($kbdb) ($($sqlInstance))?" -command 'sqlcmd -E -S $($sqlInstance) -Q "$($sql)"'
 		}
 	}
 	else {
@@ -225,3 +223,5 @@ if (-not $justKB){
 }
 
 Remove-KnowledgeBase
+
+Return

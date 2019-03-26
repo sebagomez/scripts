@@ -20,3 +20,9 @@ It can receive either the path to a GeneXus [Knowledge Base](https://wiki.genexu
 
 ### clean_tomcat
 This one mightnot work for everybody. But in my local [Apache Tomcat](https://tomcat.apache.org/) I only have disposable test apps, every once in a while they tend to pile up so this script goes thru all the web apps and removes them, with the exception of some well-known folders.
+
+### remove-knowledgebase
+This is a unified script that does all of the above. I'll receive a Knowledge Base folder path and it'll try to find the associated web apps (IIS and Tomcat) and SQL Server databases and will try to delete everything on its way.
+After that it'll remove the MDF of the Knowledge Base and the folder with every file.
+
+##### Use with caution!

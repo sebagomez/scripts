@@ -4,11 +4,7 @@ param(
 	[string]$folder,
 
 	[Parameter(Mandatory = $false)]
-	[switch]$batch,
-
-	[Parameter(Mandatory = $false)]
-	[string]$sqlInstance=".\SQL2016"
-
+	[switch]$batch
 )
 
 function Remove-KnowledgeBase() {
@@ -18,7 +14,8 @@ function Remove-KnowledgeBase() {
 	if (Test-Path "$($kb_folder)\knowledgebase.connection"){
 		[xml]$conn = Get-Content "$($kb_folder)\knowledgebase.connection"
 		$db = $conn.ConnectionInformation.DBName
-
+		$sqlInstance = $conn.ConnectionInformation.ServerInstance
+		
 		if ($db) {
 			$sql = "drop database [$($db)]";
 			sqlcmd -E -S $sqlInstance -Q $sql

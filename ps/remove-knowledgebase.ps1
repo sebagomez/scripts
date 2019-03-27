@@ -6,9 +6,6 @@ param(
 	[bool]$doNotAsk, 
 	
 	[Parameter(Mandatory = $false)]
-	[string]$sqlInstance=".\SQL2016",
-
-	[Parameter(Mandatory = $false)]
 	[bool]$justKB,
 	
 	[Parameter(Mandatory = $false)]
@@ -133,6 +130,7 @@ function Remove-KnowledgeBase() {
 	if (Test-Path "$($folder)\knowledgebase.connection"){
 		[xml]$conn = Get-Content "$($folder)\knowledgebase.connection"
 		$kbdb = $conn.ConnectionInformation.DBName
+		$sqlInstance = $conn.ConnectionInformation.ServerInstance
 
 		if ($kbdb) {
 			$sql = "drop database [$($kbdb)]";

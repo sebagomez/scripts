@@ -150,7 +150,7 @@ if (-not $justKB -and (-Not (Test-Path($iniPath)))) {
 	return 
 }
 
-if (-not $justKB){
+if (-not $justKB -and (Test-Path $iniPath)){
 	$ini = Get-Content $iniPath
 	$validModel = $false
 	$dbs = @()

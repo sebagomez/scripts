@@ -14,13 +14,39 @@ param(
 
 $iniPath = "$($folder)\model.ini"
 
+function Get-Tomcat(){
+	if (-not $script:tomcat){
+		$script:tomcat = Get-ItemPropertyValue -Path 'HKLM:\SOFTWARE\Apache Software Foundation\Tomcat\8.5\Tomcat8' -Name InstallPath
+	}
+}
+
+function Get-SqlCmd(){
+	if (-not $script:sqlcmd){
+		$sqlVersions = @(140,130,120,110,100)
+		foreach($v in $sqlVersions) {
+			$hkey = "HKLM:\SOFTWARE\Microsoft\Microsoft SQL Server\$($v)\Tools\ClientSetup"
+			if (Test-Path $hkey){
+				$script:sqlcmd = Get-ItemPropertyValue -Path $hkey -Name ODBCToolsPath
+				if ($script:sqlcmd -and (Test-Path $script:sqlcmd)){
+					$script:sqlcmd += "SQLCMD.EXE"
+					return
+				}
+				else{
+					$script:sqlcmd = $null
+				}
+			}
+		}
+	}
+}
+
 function Invoke-Command-With-Permission($message, $command){
 	if ($doNotAsk){
 		if ($print){
-			Write-Host "$($command)"
+			Write-Host $command
+			return $false
 		}
 		else{
-			Invoke-Expression $command
+			return $true
 		}
 	}
 	else {
@@ -29,12 +55,16 @@ function Invoke-Command-With-Permission($message, $command){
 		switch ($readHost) {
 			Y {
 				if ($print){ 
-					Write-Host "$($command)"
+					Write-Host $command
+					return $false
 				}else{
-					Invoke-Expression $command  
+					return $true
 				}
 			}
-			Default { Write-Host "Nothing removed" }
+			Default { 
+				Write-Host "No action taken" 
+				return $false
+			}
 		}
 	}
 }
@@ -57,6 +87,20 @@ function Get-Value($key) {
 	return
 }
 
+function Drop-Database($database, $schema, $server){
+
+	Get-SqlCmd
+	if (-not $script:sqlcmd){
+		Write-Warning "SQLcmd utillity not found. Database $($database) will not ne dropped."
+		return
+	}
+	$command = $script:sqlcmd
+	$arguments = "-S $($server) -E -Q ""DROP DATABASE [$($database)]"""
+	if (Invoke-Command-With-Permission -message "Do you want to remove the $($database) database$($schemaText) from $($server)?" -command "$($command) $($arguments)"){
+		Start-Process $script:sqlcmd -ArgumentList $arguments -NoNewWindow -Wait
+	}
+}
+
 function Remove-WebApp(){
 	if ($webRoot){
 		if ($webRoot -match "http:\/\/(.*):8080\/(.*)\/servlet"){
@@ -71,14 +115,19 @@ function Remove-WebApp(){
 }
 
 function Remove-TomcatApp(){
-	if (-not $tomcat){
-		$tomcat = Get-ItemPropertyValue -Path 'HKLM:\SOFTWARE\Apache Software Foundation\Tomcat\8.5\Tomcat8' -Name InstallPath
+	Get-Tomcat
+	if (-not $script:tomcat){
+		Write-Warning "Tomcat path not found. Webapp $($matches[2]) will not ne removed."
+		return
 	}
 
-	$appDir = $tomcat + "\webapps\" + $matches[2] 
+	$appDir = $script:tomcat + "\webapps\" + $matches[2] 
 	
 	if (Test-Path $appDir){
-		Invoke-Command-With-Permission -message "Do you want to remove the $($appDir) Tomcat app ($($model))?" -command "Remove-Item $($appDir) -Recurse"
+		$command = "Remove-Item $($appDir) -recurse -force"
+		if(Invoke-Command-With-Permission -message "Do you want to remove the $($appDir) Tomcat app ($($model))?" -command $command){
+			Invoke-Expression $command
+		}
 	}
 }
 
@@ -93,8 +142,11 @@ function Remove-IISApp(){
 		$script:sites += $webApp
 		foreach($wa in $webApps){
 			if ($wa.path -eq $webApp){
-				Invoke-Command-With-Permission -message "Do you want to remove the $($webApp) IIS app ($($model))?" -command "Remove-WebApplication -Site '$($defaultWebSite)' -Name $($wa.path.substring(1))"
-				return
+				$command = "Remove-WebApplication -Site '$($defaultWebSite)' -Name $($wa.path.substring(1))"
+				if (Invoke-Command-With-Permission -message "Do you want to remove the $($webApp) IIS app ($($model))?" -command $command){
+					Invoke-Expression $command
+					return
+				}
 			}
 		}
 	}
@@ -103,14 +155,15 @@ function Remove-IISApp(){
 function Remove-Database(){
 	if ($dbms){
 		if ($dbms -eq "SQL Server"){
+			
 			if ($dbName -and (-not ($script:dbs.contains($dbName)))) {
 				$script:dbs += $dbName
-				$sql = "drop database [$($dbName)]";
 				$schemaText = ""
 				if ($schema){
 					$schemaText = " ($($schema))"
 				}
-				Invoke-Command-With-Permission -message "Do you want to remove the $($dbName) database$($schemaText) from $($dbServer) ($($model))?" -command 'sqlcmd -E -S $($dbServer) -Q "$($sql)"'
+
+				Drop-Database -database $dbName -schema $schemaText -server $dbServer
 			}
 		}
 		else {
@@ -133,8 +186,7 @@ function Remove-KnowledgeBase() {
 		$sqlInstance = $conn.ConnectionInformation.ServerInstance
 
 		if ($kbdb) {
-			$sql = "drop database [$($kbdb)]";
-			Invoke-Command-With-Permission -message "Do you want to delete the KB database at $($kbdb) ($($sqlInstance))?" -command 'sqlcmd -E -S $($sqlInstance) -Q "$($sql)"'
+			Drop-Database -database $kbdb -server $sqlInstance
 		}
 	}
 	else {
@@ -142,13 +194,20 @@ function Remove-KnowledgeBase() {
 		return
 	}
 
-	Invoke-Command-With-Permission -message "Do you want to delete KB folder at $($folder)?" -command "Remove-Item $($folder) -Recurse -Force"
+	$command = "Remove-Item -path $($folder) -recurse -force"
+	if (Invoke-Command-With-Permission -message "Do you want to delete KB folder at $($folder)?" -command $command){
+		Invoke-Expression $command
+	}
 }
 
+
 if (-not $justKB -and (-Not (Test-Path($iniPath)))) {
-	Write-Host "model.ini file not found"
+	Write-Host "model.ini file not found ($($iniPath))"
 	return 
 }
+
+$sqlcmd = $null
+$tomcat = $null
 
 if (-not $justKB -and (Test-Path $iniPath)){
 	$ini = Get-Content $iniPath

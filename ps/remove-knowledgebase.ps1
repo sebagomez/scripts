@@ -12,7 +12,7 @@ param(
 	[bool]$print
 )
 
-$iniPath = "$($folder)\model.ini"
+
 
 function Get-Tomcat(){
 	if (-not $script:tomcat){
@@ -200,12 +200,7 @@ function Remove-KnowledgeBase() {
 	}
 }
 
-
-if (-not $justKB -and (-Not (Test-Path($iniPath)))) {
-	Write-Host "model.ini file not found ($($iniPath))"
-	return 
-}
-
+$iniPath = "$($folder)\model.ini"
 $sqlcmd = $null
 $tomcat = $null
 

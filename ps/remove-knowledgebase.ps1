@@ -124,7 +124,7 @@ function Remove-TomcatApp(){
 	$appDir = $script:tomcat + "\webapps\" + $matches[2] 
 	
 	if (Test-Path $appDir){
-		$command = "Remove-Item $($appDir) -recurse -force"
+		$command = "Remove-Item ""$($appDir)"" -recurse -force"
 		if(Invoke-Command-With-Permission -message "Do you want to remove the $($appDir) Tomcat app ($($model))?" -command $command){
 			Invoke-Expression $command
 		}

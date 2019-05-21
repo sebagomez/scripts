@@ -14,24 +14,40 @@ param(
 
 
 
-function Get-Tomcat(){
-	if (-not $script:tomcat){
-		$script:tomcat = Get-ItemPropertyValue -Path 'HKLM:\SOFTWARE\Apache Software Foundation\Tomcat\8.5\Tomcat8' -Name InstallPath
+function Get-Tomcat() {
+	if (-not $script:tomcat) {
+		$installed = Get-Item -Path 'HKLM:\SOFTWARE\Apache Software Foundation\Tomcat\*\*'
+		if ($installed.Count -gt 1) {
+			Write-Host "More than one Tomcat installation was found, type position for the desired instance"
+			$i = 1
+			foreach ($t in $installed) {
+				Write-Host "$($i). $($t)"
+				$i++
+			}
+			$selected = Read-Host "What is it gonna be?"
+			$selected = [int]::Parse($selected) - 1
+			$instance = $installed[$selected]
+		}
+		else {
+			$instance = $installed
+		}
+		
+		$script:tomcat = Get-ItemPropertyValue -Path "HKLM:\$($instance)" -Name InstallPath
 	}
 }
 
-function Get-SqlCmd(){
-	if (-not $script:sqlcmd){
-		$sqlVersions = @(140,130,120,110,100)
-		foreach($v in $sqlVersions) {
+function Get-SqlCmd() {
+	if (-not $script:sqlcmd) {
+		$sqlVersions = @(140, 130, 120, 110, 100)
+		foreach ($v in $sqlVersions) {
 			$hkey = "HKLM:\SOFTWARE\Microsoft\Microsoft SQL Server\$($v)\Tools\ClientSetup"
-			if (Test-Path $hkey){
+			if (Test-Path $hkey) {
 				$script:sqlcmd = Get-ItemPropertyValue -Path $hkey -Name ODBCToolsPath
-				if ($script:sqlcmd -and (Test-Path $script:sqlcmd)){
+				if ($script:sqlcmd -and (Test-Path $script:sqlcmd)) {
 					$script:sqlcmd += "SQLCMD.EXE"
 					return
 				}
-				else{
+				else {
 					$script:sqlcmd = $null
 				}
 			}
@@ -39,13 +55,13 @@ function Get-SqlCmd(){
 	}
 }
 
-function Invoke-Command-With-Permission($message, $command){
-	if ($doNotAsk){
-		if ($print){
+function Invoke-Command-With-Permission($message, $command) {
+	if ($doNotAsk) {
+		if ($print) {
 			Write-Host $command
 			return $false
 		}
-		else{
+		else {
 			return $true
 		}
 	}
@@ -54,10 +70,11 @@ function Invoke-Command-With-Permission($message, $command){
 		$readHost = Read-Host "(Y/N)"
 		switch ($readHost) {
 			Y {
-				if ($print){ 
+				if ($print) { 
 					Write-Host $command
 					return $false
-				}else{
+				}
+				else {
 					return $true
 				}
 			}
@@ -70,7 +87,7 @@ function Invoke-Command-With-Permission($message, $command){
 }
 
 
-function Remove-WebApp-Database(){
+function Remove-WebApp-Database() {
 	Remove-WebApp
 	Remove-Database 
 }
@@ -78,7 +95,7 @@ function Remove-WebApp-Database(){
 function Get-Value($key) {
 	$keys = $key.split(":")
 
-	foreach($k in $keys){
+	foreach ($k in $keys) {
 		if ($line -match "^$($k)=") {
 			$value = $line.substring($k.length + 1)
 			return $value
@@ -87,23 +104,23 @@ function Get-Value($key) {
 	return
 }
 
-function Drop-Database($database, $schema, $server){
+function Drop-Database($database, $schema, $server) {
 
 	Get-SqlCmd
-	if (-not $script:sqlcmd){
+	if (-not $script:sqlcmd) {
 		Write-Warning "SQLcmd utillity not found. Database $($database) will not ne dropped."
 		return
 	}
 	$command = $script:sqlcmd
 	$arguments = "-S $($server) -E -Q ""DROP DATABASE [$($database)]"""
-	if (Invoke-Command-With-Permission -message "Do you want to remove the $($database) database$($schemaText) from $($server)?" -command "$($command) $($arguments)"){
+	if (Invoke-Command-With-Permission -message "Do you want to remove the $($database) database$($schemaText) from $($server)?" -command "$($command) $($arguments)") {
 		Start-Process $script:sqlcmd -ArgumentList $arguments -NoNewWindow -Wait
 	}
 }
 
-function Remove-WebApp(){
-	if ($webRoot){
-		if ($webRoot -match "http:\/\/(.*):8080\/(.*)\/servlet"){
+function Remove-WebApp() {
+	if ($webRoot) {
+		if ($webRoot -match "http:\/\/(.*):8080\/(.*)\/servlet") {
 			Remove-TomcatApp
 		}
 		else {
@@ -114,36 +131,36 @@ function Remove-WebApp(){
 	$script:generator = $null
 }
 
-function Remove-TomcatApp(){
+function Remove-TomcatApp() {
 	Get-Tomcat
-	if (-not $script:tomcat){
+	if (-not $script:tomcat) {
 		Write-Warning "Tomcat path not found. Webapp $($matches[2]) will not ne removed."
 		return
 	}
 
 	$appDir = $script:tomcat + "\webapps\" + $matches[2] 
 	
-	if (Test-Path $appDir){
+	if (Test-Path $appDir) {
 		$command = "Remove-Item ""$($appDir)"" -recurse -force"
-		if(Invoke-Command-With-Permission -message "Do you want to remove the $($appDir) Tomcat app ($($model))?" -command $command){
+		if (Invoke-Command-With-Permission -message "Do you want to remove the $($appDir) Tomcat app ($($model))?" -command $command) {
 			Invoke-Expression $command
 		}
 	}
 }
 
-function Remove-IISApp(){
+function Remove-IISApp() {
 	$defaultWebSite = "Default Web Site"
 	$webApps = Get-WebApplication -Site $defaultWebSite
 
-	$webApp = $webRoot.Replace("http://localhost","")
+	$webApp = $webRoot.Replace("http://localhost", "")
 	$webApp = $webApp.substring(0, $webApp.length - 1)
 	
-	if (-not ($script:sites.contains($webApp))){
+	if (-not ($script:sites.contains($webApp))) {
 		$script:sites += $webApp
-		foreach($wa in $webApps){
-			if ($wa.path -eq $webApp){
+		foreach ($wa in $webApps) {
+			if ($wa.path -eq $webApp) {
 				$command = "Remove-WebApplication -Site '$($defaultWebSite)' -Name $($wa.path.substring(1))"
-				if (Invoke-Command-With-Permission -message "Do you want to remove the $($webApp) IIS app ($($model))?" -command $command){
+				if (Invoke-Command-With-Permission -message "Do you want to remove the $($webApp) IIS app ($($model))?" -command $command) {
 					Invoke-Expression $command
 					return
 				}
@@ -152,14 +169,14 @@ function Remove-IISApp(){
 	}
 }
 
-function Remove-Database(){
-	if ($dbms){
-		if ($dbms -eq "SQL Server"){
+function Remove-Database() {
+	if ($dbms) {
+		if ($dbms -eq "SQL Server") {
 			
 			if ($dbName -and (-not ($script:dbs.contains($dbName)))) {
 				$script:dbs += $dbName
 				$schemaText = ""
-				if ($schema){
+				if ($schema) {
 					$schemaText = " ($($schema))"
 				}
 
@@ -167,7 +184,7 @@ function Remove-Database(){
 			}
 		}
 		else {
-			if (-not ($dbms.startswith("Android")) -and (-not ($dbms.startswith("SmartDevices"))) -and (-not ($dbms.startswith("Swift")))-and (-not ($dbms.startswith("Objective-C")))){
+			if (-not ($dbms.startswith("Android")) -and (-not ($dbms.startswith("SmartDevices"))) -and (-not ($dbms.startswith("Swift"))) -and (-not ($dbms.startswith("Objective-C")))) {
 				Write-Warning "I'm not able to remove $($dbms) databases. You'll have to remove it yourself"
 			}
 		}
@@ -180,7 +197,7 @@ function Remove-Database(){
 
 function Remove-KnowledgeBase() {
 
-	if (Test-Path "$($folder)\knowledgebase.connection"){
+	if (Test-Path "$($folder)\knowledgebase.connection") {
 		[xml]$conn = Get-Content "$($folder)\knowledgebase.connection"
 		$kbdb = $conn.ConnectionInformation.DBName
 		$sqlInstance = $conn.ConnectionInformation.ServerInstance
@@ -195,7 +212,7 @@ function Remove-KnowledgeBase() {
 	}
 
 	$command = "Remove-Item -path $($folder) -recurse -force"
-	if (Invoke-Command-With-Permission -message "Do you want to delete KB folder at $($folder)?" -command $command){
+	if (Invoke-Command-With-Permission -message "Do you want to delete KB folder at $($folder)?" -command $command) {
 		Invoke-Expression $command
 	}
 }
@@ -204,58 +221,58 @@ $iniPath = "$($folder)\model.ini"
 $sqlcmd = $null
 $tomcat = $null
 
-if (-not $justKB -and (Test-Path $iniPath)){
+if (-not $justKB -and (Test-Path $iniPath)) {
 	$ini = Get-Content $iniPath
 	$validModel = $false
 	$dbs = @()
 	$sites = @()
 	foreach ($line in $ini) {
 
-		if (-not $model){
+		if (-not $model) {
 			$model = Get-Value -key "Model"
-			if ($model -and ($model -ne "Design")){
+			if ($model -and ($model -ne "Design")) {
 				$validModel = $true
 			}
 			else {
 				$validModel = $false
 			}
-			if ($model){
+			if ($model) {
 				continue
 			}
 		}
-		if ($validModel -and (-not $webRoot)){
+		if ($validModel -and (-not $webRoot)) {
 			$webRoot = Get-Value -key "WebRoot"
-			if ($webRoot){
+			if ($webRoot) {
 				continue
 			}
 		}
-		if ($validModel -and (-not $generator)){
+		if ($validModel -and (-not $generator)) {
 			$generator = Get-Value -key "GeneratorType"
-			if ($generator){
+			if ($generator) {
 				continue
 			}
 		}
-		if ($validModel -and (-not $dbServer)){
+		if ($validModel -and (-not $dbServer)) {
 			$dbServer = Get-Value -key "CS_SERVER:CC_SERVER"
-			if ($dbServer){
+			if ($dbServer) {
 				continue
 			}
 		}
-		if ($validModel -and (-not $dbName)){
+		if ($validModel -and (-not $dbName)) {
 			$dbName = Get-Value -key "CS_DBNAME:CC_DBNAME"
-			if ($dbName){
+			if ($dbName) {
 				continue
 			}
 		}
-		if ($validModel -and (-not $dbms)){
+		if ($validModel -and (-not $dbms)) {
 			$dbms = Get-Value -key "Description"
-			if ($dbms){
+			if ($dbms) {
 				continue
 			}
 		}
-		if ($validModel -and (-not $schema)){
+		if ($validModel -and (-not $schema)) {
 			$schema = Get-Value -key "CS_SCHEMA:CC_SCHEMA"
-			if ($schema){
+			if ($schema) {
 				continue
 			}
 		}
@@ -266,7 +283,7 @@ if (-not $justKB -and (Test-Path $iniPath)){
 		}
 
 		if ($line -match "^\[PREFERENCES $($modelId).*") {
-			if ($validModel){
+			if ($validModel) {
 				Remove-WebApp-Database	
 			}
 		}

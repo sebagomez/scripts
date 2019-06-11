@@ -24,6 +24,8 @@ if (-not $tomcat) {
 	return
 } 
 
+Get-Service *tomcat* | Stop-Service -Force
+
 Write-Host Cleaning Tomcat at $tomcat
 
 $webAppsDir = $tomcat + "\webapps"
@@ -34,13 +36,15 @@ foreach ($f in $files) {
 	if (!$keep.Contains($name)) {
 		Write-Host "Removing $($f.FullName)"
 		if ($f.PSIsContainer) {
-			#Remove-Item $f.FullName -Recurse
+			Remove-Item $f.FullName -Recurse
 		}
 		else {
-			#Remove-Item $f.FullName
+			Remove-Item $f.FullName
 		}
 	}
 	else {
 		Write-Host "$($f.FullName) will not be deleted"
 	}
 }
+
+Get-Service *tomcat* | Start-Service

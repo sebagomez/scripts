@@ -18,7 +18,7 @@ function Get-Tomcat() {
 	if (-not $script:tomcat) {
 		$installed = Get-Item -Path 'HKLM:\SOFTWARE\Apache Software Foundation\Tomcat\*\*'
 		if ($installed.Count -gt 1) {
-			Write-Host "More than one Tomcat installation was found, type position for the desired instance"
+			Write-Host "More than one Tomcat installation was found, type the position for the desired instance"
 			$i = 1
 			foreach ($t in $installed) {
 				Write-Host "$($i). $($t)"
@@ -33,6 +33,8 @@ function Get-Tomcat() {
 		}
 		
 		$script:tomcat = Get-ItemPropertyValue -Path "HKLM:\$($instance)" -Name InstallPath
+
+		Get-Service *tomcat* | Stop-Service -Force
 	}
 }
 
@@ -292,5 +294,7 @@ if (-not $justKB -and (Test-Path $iniPath)) {
 }
 
 Remove-KnowledgeBase
+
+Get-Service *tomcat* | Start-Service
 
 Return

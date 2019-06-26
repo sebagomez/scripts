@@ -144,7 +144,7 @@ function Remove-TomcatApp() {
 	
 	if (Test-Path $appDir) {
 		$command = "Remove-Item ""$($appDir)"" -recurse -force"
-		if (Invoke-Command-With-Permission -message "Do you want to remove the $($appDir) Tomcat app ($($model))?" -command $command) {
+		if (Invoke-Command-With-Permission -message "Do you want to remove the $($matches[2]) Tomcat app ($($model))?" -command $command) {
 			Invoke-Expression $command
 		}
 	}
@@ -222,6 +222,13 @@ function Remove-KnowledgeBase() {
 $iniPath = "$($folder)\model.ini"
 $sqlcmd = $null
 $tomcat = $null
+$model = $null
+$webRoot = $null
+$generator = $null
+$dbServer = $null
+$dbms = $null
+$dbName = $null
+$schema = $null
 
 if (-not $justKB -and (Test-Path $iniPath)) {
 	$ini = Get-Content $iniPath
@@ -230,7 +237,7 @@ if (-not $justKB -and (Test-Path $iniPath)) {
 	$sites = @()
 	foreach ($line in $ini) {
 
-		if (-not $model) {
+		if (-not $model -or ($model -eq "Design")) {
 			$model = Get-Value -key "Model"
 			if ($model -and ($model -ne "Design")) {
 				$validModel = $true
@@ -280,17 +287,21 @@ if (-not $justKB -and (Test-Path $iniPath)) {
 		}
 
 		if ($line -match "^\[MODEL (.*)\]") {
-			$model = $null
-			$modelId = $matches[1]
-		}
-
-		if ($line -match "^\[PREFERENCES $($modelId).*") {
 			if ($validModel) {
 				Remove-WebApp-Database	
 			}
+			$model = $null
+			$webRoot = $null
+			$generator = $null
+			$dbServer = $null
+			$dbName = $null
+			$dbms = $null
+			$schema = $null
 		}
 	}
-	Remove-WebApp-Database
+	if ($validModel) {
+		Remove-WebApp-Database	
+	}
 }
 
 Remove-KnowledgeBase

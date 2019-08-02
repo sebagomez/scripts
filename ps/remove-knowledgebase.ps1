@@ -213,7 +213,7 @@ function Remove-KnowledgeBase() {
 		return
 	}
 
-	$command = "Remove-Item -path $($folder) -recurse -force"
+	$command = "Remove-Item -path '$($folder)' -recurse -force"
 	if (Invoke-Command-With-Permission -message "Do you want to delete KB folder at $($folder)?" -command $command) {
 		Invoke-Expression $command
 	}

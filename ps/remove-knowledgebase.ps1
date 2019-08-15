@@ -306,6 +306,6 @@ if (-not $justKB -and (Test-Path $iniPath)) {
 
 Remove-KnowledgeBase
 
-Get-Service *tomcat* | Start-Service
+Get-Service tomcat* | Start-Service
 
 Return

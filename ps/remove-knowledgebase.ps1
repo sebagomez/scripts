@@ -68,7 +68,7 @@ function Invoke-Command-With-Permission($message, $command) {
 		}
 	}
 	else {
-		Write-Host $message
+		Write-Warning $message
 		$readHost = Read-Host "(Y/N)"
 		switch ($readHost) {
 			Y {

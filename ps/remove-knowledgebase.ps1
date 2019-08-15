@@ -106,7 +106,7 @@ function Get-Value($key) {
 	return
 }
 
-function Drop-Database($database, $schema, $server) {
+function Remove-SQL-Database($database, $schema, $server) {
 
 	Get-SqlCmd
 	if (-not $script:sqlcmd) {
@@ -182,7 +182,7 @@ function Remove-Database() {
 					$schemaText = " ($($schema))"
 				}
 
-				Drop-Database -database $dbName -schema $schemaText -server $dbServer
+				Remove-SQL-Database -database $dbName -schema $schemaText -server $dbServer
 			}
 		}
 		else {
@@ -205,7 +205,7 @@ function Remove-KnowledgeBase() {
 		$sqlInstance = $conn.ConnectionInformation.ServerInstance
 
 		if ($kbdb) {
-			Drop-Database -database $kbdb -server $sqlInstance
+			Remove-SQL-Database -database $kbdb -server $sqlInstance
 		}
 	}
 	else {

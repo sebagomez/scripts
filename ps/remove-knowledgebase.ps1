@@ -148,6 +148,8 @@ function Remove-TomcatApp() {
 			Invoke-Expression $command
 		}
 	}
+
+	$script:startTomcat = $true
 }
 
 function Remove-IISApp() {
@@ -306,6 +308,8 @@ if (-not $justKB -and (Test-Path $iniPath)) {
 
 Remove-KnowledgeBase
 
-Get-Service tomcat* | Start-Service
+if ($startTomcat){
+	Get-Service tomcat* | Start-Service
+}
 
 Return

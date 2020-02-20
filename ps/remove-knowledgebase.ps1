@@ -156,7 +156,8 @@ function Remove-IISApp() {
 	$defaultWebSite = "Default Web Site"
 	$webApps = Get-WebApplication -Site $defaultWebSite
 
-	$webApp = $webRoot.Replace("http://localhost", "")
+	$urlRegex = "http(s)?:\/\/[\w\d\.]*(:\d*)?"
+	$webApp = $webRoot -replace $urlRegex, ""
 	$webApp = $webApp.substring(0, $webApp.length - 1)
 	
 	if (-not ($script:sites.contains($webApp))) {

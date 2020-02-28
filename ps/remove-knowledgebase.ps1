@@ -35,6 +35,7 @@ function Get-Tomcat() {
 		$script:tomcat = Get-ItemPropertyValue -Path "HKLM:\$($instance)" -Name InstallPath
 
 		Get-Service *tomcat* | Stop-Service -Force
+		$script:startTomcat = $true
 	}
 }
 
@@ -135,21 +136,33 @@ function Remove-WebApp() {
 
 function Remove-TomcatApp() {
 	Get-Tomcat
+	
+	$appName = $matches[2]
 	if (-not $script:tomcat) {
-		Write-Warning "Tomcat path not found. Webapp $($matches[2]) will not ne removed."
+		Write-Warning "Tomcat path not found. Webapp $($appName) will not ne removed."
 		return
 	}
-
-	$appDir = $script:tomcat + "\webapps\" + $matches[2] 
+	
+	$appDir = $script:tomcat + "\webapps\" + $appName
 	
 	if (Test-Path $appDir) {
 		$command = "Remove-Item ""$($appDir)"" -recurse -force"
-		if (Invoke-Command-With-Permission -message "Do you want to remove the $($matches[2]) Tomcat app ($($model))?" -command $command) {
+		if (Invoke-Command-With-Permission -message "Do you want to remove the $($appName) Tomcat app ($($model))?" -command $command) {
 			Invoke-Expression $command
+
+			$workDir = $script:tomcat + "\work\Catalina\localhost\" + $appName
+			if (Test-Path $workDir) {
+				$command = "Remove-Item ""$($workDir)"" -recurse -force"
+				Invoke-Expression $command
+			}
+
+			$confFile = $script:tomcat + "\conf\catalina\localhost\" + $appName + ".xml"
+			if (Test-Path $confFile) {
+				$command = "Remove-Item ""$($confFile)"" -force"
+				Invoke-Expression $command
+			}
 		}
 	}
-
-	$script:startTomcat = $true
 }
 
 function Remove-IISApp() {

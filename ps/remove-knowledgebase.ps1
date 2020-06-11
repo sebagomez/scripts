@@ -41,7 +41,7 @@ function Get-Tomcat() {
 
 function Get-SqlCmd() {
 	if (-not $script:sqlcmd) {
-		$sqlVersions = @(140, 130, 120, 110, 100)
+		$sqlVersions = @(150, 140, 130, 120, 110, 100)
 		foreach ($v in $sqlVersions) {
 			$hkey = "HKLM:\SOFTWARE\Microsoft\Microsoft SQL Server\$($v)\Tools\ClientSetup"
 			if (Test-Path $hkey) {
